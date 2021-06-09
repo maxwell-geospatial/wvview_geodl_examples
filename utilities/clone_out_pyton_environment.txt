@@ -1,0 +1,5 @@
+#Clone enviornment
+
+1. Download enviornment.yml from the GitHub Repo (I created this using: conda env export > environment.yml
+2. Run command in your Powershell or Command Prompt: conda env create -f environment.yml (may need to provide full path)
+3. Activate with conda activate pytorchSB
