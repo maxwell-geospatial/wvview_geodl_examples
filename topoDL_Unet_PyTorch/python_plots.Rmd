@@ -1,0 +1,70 @@
+---
+title: "Unet_Python"
+author: "Aaron Maxwell"
+date: "6/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+matplotlib <- import("matplotlib")
+matplotlib$use("Agg", force = TRUE)
+```
+
+```{python}
+# Plot example image =====================================
+imgPlot = plt.imshow(testImg.permute(1,2,0))
+plt.show()
+```
+
+```{python}
+# Plot exmaple mask ======================================
+maskPlot = plt.imshow(testMsk.permute(1,2,0))
+plt.show()
+```
+
+```{python}
+# Train model for 10 epochs ==================================
+max_score = 0
+
+for i in range(0, 10):
+    
+    print('\nEpoch: {}'.format(i))
+    train_logs = train_epoch.run(trainDL)
+    test_logs = test_epoch.run(testDL)
+    
+    # do something (save model, change lr, etc.)
+    if max_score < test_logs['fscore']:
+        max_score = test_logs['fscore']
+        torch.save(model, './best_model.pth')
+        print('Model saved!')
+        
+    if i == 25:
+        optimizer.param_groups[0]['lr'] = 1e-5
+        print('Decrease decoder learning rate to 1e-5!')
+```
+
+```{python}
+for i in range(5):
+    n = np.random.choice(len(valDS))
+    
+    image_vis = valDS[n][0].permute(1,2,0)
+    image_vis = image_vis.numpy()*255
+    image_vis = image_vis.astype('uint8')
+    image, gt_mask = valDS[n]
+    
+    gt_mask = gt_mask.squeeze()
+    
+    x_tensor = image.to(DEVICE).unsqueeze(0)
+    pr_mask = best_model.predict(x_tensor)
+    pr_mask = (pr_mask.squeeze().cpu().numpy().round())
+        
+    visualize(
+        image=image_vis,
+        ground_truth_mask=gt_mask, 
+        predicted_mask=pr_mask
+    )
+```
