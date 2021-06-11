@@ -3,297 +3,98 @@ library(stringr)
 library(terra)
 library(imager)
 
-library(reticulate)
-use_python("C:/Users/amaxwel6/Anaconda3/envs/pytorchSB/python.exe", required=TRUE)
-py_config()
+#List out all images and masks
+images <- list.files("C:/Maxwell_Data/inria/NEW2-AerialImageDataset/AerialImageDataset/train/images", pattern="\\.tif$")
+masks <- list.files("C:/Maxwell_Data/inria/NEW2-AerialImageDataset/AerialImageDataset/train/gt", pattern="\\.tif$")
 
-library(dplyr)
-library(stringr)
-
-
-images <- list.files("C:/Maxwell_Data/inria/NEW2-AerialImageDataset/AerialImageDataset/train/images")
-masks <- list.files("C:/Maxwell_Data/inria/NEW2-AerialImageDataset/AerialImageDataset/train/gt")
-
+#Build data frame of images and masks
 input_cities <- data.frame(Images = images, Masks = masks)
 
+#Add city column
 input_cities$city <- str_replace_all(c(input_cities$Images), "[:digit:]", "")
 input_cities$city <- substr(input_cities$city,1,nchar(input_cities$city)-4)
 
+#Get count of images for each city
 input_cities %>% group_by(city) %>% count()
 
+#Create columns with full path
 input_cities$img_full <- paste0("C:/Maxwell_Data/inria/NEW2-AerialImageDataset/AerialImageDataset/train/images/", input_cities$Images)
-
 input_cities$msk_full <- paste0("C:/Maxwell_Data/inria/NEW2-AerialImageDataset/AerialImageDataset/train/gt/", input_cities$Masks)
 
+#Create separate data frames for each city
 austin <- input_cities %>% filter(city == "austin")
 chicago <- input_cities %>% filter(city == "chicago")
 kitsap <- input_cities %>% filter(city == "kitsap")
 tyrol <- input_cities %>% filter(city == "tyrol-w")
 vienna <- input_cities %>% filter(city == "vienna")
 
-chipIt <- function(image, mask, size=256, stride_x=256, stride_y=256, outDir, mode="All"){
-  if(mode == "All"){
-    topo1 <- rast(image)
-    mask1 <- rast(mask)
-    
-    fName = basename(image)
-    
-    if (file.exists(paste0(outDir, "/images"))){
-      print("Using Existing Folders")
-    } else {
-      dir.create(paste0(outDir, "/images"))
-      dir.create(paste0(outDir, "/masks"))
-    }
-    
-    across_cnt = ncol(topo1)
-    down_cnt = nrow(topo1)
-    tile_size_across = size
-    tile_size_down = size
-    overlap_across = stride_x
-    overlap_down = stride_y
-    across <- ceiling(across_cnt/overlap_across)
-    down <- ceiling(down_cnt/overlap_down)
-    across_add <- (across*overlap_across)-across_cnt 
-    across_seq <- seq(0, across-1, by=1)
-    down_seq <- seq(0, down-1, by=1)
-    across_seq2 <- (across_seq*overlap_across)+1
-    down_seq2 <- (down_seq*overlap_down)+1
-    
-    #Loop through row/column combinations to make predictions for entire image 
-    for (c in across_seq2){
-      for (r in down_seq2){
-        c1 <- c
-        r1 <- r
-        c2 <- c + (stride_x-1)
-        r2 <- r + (stride_y-1)
-        if(c2 <= across_cnt && r2 <= down_cnt){ #Full chip
-          chip_data <- topo1[r1:r2, c1:c2, 1:3]
-          mask_data <- mask1[r1:r2, c1:c2, 1]
-        }else if(c2 > across_cnt && r2 <= down_cnt){ # Last column
-          c1b <- across_cnt - (size-1)
-          c2b <- across_cnt
-          chip_data <- topo1[r1:r2, c1b:c2b, 1:3]
-          mask_data <- mask1[r1:r2, c1b:c2b, 1]
-        }else if(c2 <= across_cnt && r2 > down_cnt){ #Last row
-          r1b <- down_cnt - (size-1)
-          r2b <- down_cnt
-          chip_data <- topo1[r1b:r2b, c1:c2, 1:3]
-          mask_data <- mask1[r1b:r2b, c1:c2, 1]
-        }else{ # Last row, last column
-          c1b <- across_cnt - (size -1)
-          c2b <- across_cnt
-          r1b <- down_cnt - (size -1)
-          r2b <- down_cnt
-          chip_data <- topo1[r1b:r2b, c1b:c2b, 1:3]
-          mask_data <- mask1[r1b:r2b, c1b:c2b, 1]
-        }
-        names(chip_data) <- c("R", "G", "B")
-        R <- as.vector(chip_data$R)
-        G <- as.vector(chip_data$G)
-        B <- as.vector(chip_data$B)
-        chip_data2 <- c(R, G, B)
-        chip_array <- array(chip_data2, c(256,256,3))
-        img1 <- as.cimg(chip_array)
-        imager::save.image(img1, paste0(outDir, "/images/", substr(fName, 1, nchar(image)-4), "_", c1, "_", r1, ".png"))
-        names(mask_data) <- c("C")
-        Cx <- as.vector(mask_data$C)
-        mask_array <- array(Cx, c(256,256,1))
-        msk1 <- as.cimg(mask_array)
-        imager::save.image(msk1, paste0(outDir, "/masks/", substr(fName, 1, nchar(image)-4), "_", c1, "_", r1, ".png"))
-      }
-    }
-  }else if(mode == "Positive"){
-    topo1 <- rast(image)
-    mask1 <- rast(mask)
-    
-    fName = basename(image)
-    
-    if (file.exists(paste0(outDir, "/images"))){
-      print("Using Existing Folders")
-    } else {
-      dir.create(paste0(outDir, "/images"))
-      dir.create(paste0(outDir, "/masks"))
-    }
-    
-    across_cnt = ncol(topo1)
-    down_cnt = nrow(topo1)
-    tile_size_across = size
-    tile_size_down = size
-    overlap_across = stride_x
-    overlap_down = stride_y
-    across <- ceiling(across_cnt/overlap_across)
-    down <- ceiling(down_cnt/overlap_down)
-    across_add <- (across*overlap_across)-across_cnt 
-    across_seq <- seq(0, across-1, by=1)
-    down_seq <- seq(0, down-1, by=1)
-    across_seq2 <- (across_seq*overlap_across)+1
-    down_seq2 <- (down_seq*overlap_down)+1
-    
-    #Loop through row/column combinations to make predictions for entire image 
-    for (c in across_seq2){
-      for (r in down_seq2){
-        c1 <- c
-        r1 <- r
-        c2 <- c + (stride_x-1)
-        r2 <- r + (stride_y-1)
-        if(c2 <= across_cnt && r2 <= down_cnt){ #Full chip
-          chip_data <- topo1[r1:r2, c1:c2, 1:3]
-          mask_data <- mask1[r1:r2, c1:c2, 1]
-        }else if(c2 > across_cnt && r2 <= down_cnt){ # Last column
-          c1b <- across_cnt - (size-1)
-          c2b <- across_cnt
-          chip_data <- topo1[r1:r2, c1b:c2b, 1:3]
-          mask_data <- mask1[r1:r2, c1b:c2b, 1]
-        }else if(c2 <= across_cnt && r2 > down_cnt){ #Last row
-          r1b <- down_cnt - (size-1)
-          r2b <- down_cnt
-          chip_data <- topo1[r1b:r2b, c1:c2, 1:3]
-          mask_data <- mask1[r1b:r2b, c1:c2, 1]
-        }else{ # Last row, last column
-          c1b <- across_cnt - (size -1)
-          c2b <- across_cnt
-          r1b <- down_cnt - (size -1)
-          r2b <- down_cnt
-          chip_data <- topo1[r1b:r2b, c1b:c2b, 1:3]
-          mask_data <- mask1[r1b:r2b, c1b:c2b, 1]
-        }
-        names(chip_data) <- c("R", "G", "B")
-        R <- as.vector(chip_data$R)
-        G <- as.vector(chip_data$G)
-        B <- as.vector(chip_data$B)
-        chip_data2 <- c(R, G, B)
-        chip_array <- array(chip_data2, c(256,256,3))
-        img1 <- as.cimg(chip_array)
-        names(mask_data) <- c("C")
-        Cx <- as.vector(mask_data$C)
-        mask_array <- array(Cx, c(256,256,1))
-        msk1 <- as.cimg(mask_array)
-        if(max(mask_array) > 0){
-          imager::save.image(img1, paste0(outDir, "/images/", substr(fName, 1, nchar(image)-4), "_", c1, "_", r1, ".png"))
-          imager::save.image(msk1, paste0(outDir, "/masks/", substr(fName, 1, nchar(image)-4), "_", c1, "_", r1, ".png"))
-        }
-      }
-    }
-  }else{
-    topo1 <- rast(image)
-    mask1 <- rast(mask)
-    
-    fName = basename(image)
-    
-    if (file.exists(paste0(outDir, "/images"))){
-      print("Using Existing Folders")
-    } else {
-      dir.create(paste0(outDir, "/images"))
-      dir.create(paste0(outDir, "/masks"))
-      
-      dir.create(paste0(outDir, "/images/positive"))
-      dir.create(paste0(outDir, "/images/background"))
-      dir.create(paste0(outDir, "/masks/positive"))
-      dir.create(paste0(outDir, "/masks/background"))
-    }
-    
-    across_cnt = ncol(topo1)
-    down_cnt = nrow(topo1)
-    tile_size_across = size
-    tile_size_down = size
-    overlap_across = stride_x
-    overlap_down = stride_y
-    across <- ceiling(across_cnt/overlap_across)
-    down <- ceiling(down_cnt/overlap_down)
-    across_add <- (across*overlap_across)-across_cnt 
-    across_seq <- seq(0, across-1, by=1)
-    down_seq <- seq(0, down-1, by=1)
-    across_seq2 <- (across_seq*overlap_across)+1
-    down_seq2 <- (down_seq*overlap_down)+1
-    
-    #Loop through row/column combinations to make predictions for entire image 
-    for (c in across_seq2){
-      for (r in down_seq2){
-        c1 <- c
-        r1 <- r
-        c2 <- c + (stride_x-1)
-        r2 <- r + (stride_y-1)
-        if(c2 <= across_cnt && r2 <= down_cnt){ #Full chip
-          chip_data <- topo1[r1:r2, c1:c2, 1:3]
-          mask_data <- mask1[r1:r2, c1:c2, 1]
-        }else if(c2 > across_cnt && r2 <= down_cnt){ # Last column
-          c1b <- across_cnt - (size-1)
-          c2b <- across_cnt
-          chip_data <- topo1[r1:r2, c1b:c2b, 1:3]
-          mask_data <- mask1[r1:r2, c1b:c2b, 1]
-        }else if(c2 <= across_cnt && r2 > down_cnt){ #Last row
-          r1b <- down_cnt - (size-1)
-          r2b <- down_cnt
-          chip_data <- topo1[r1b:r2b, c1:c2, 1:3]
-          mask_data <- mask1[r1b:r2b, c1:c2, 1]
-        }else{ # Last row, last column
-          c1b <- across_cnt - (size -1)
-          c2b <- across_cnt
-          r1b <- down_cnt - (size -1)
-          r2b <- down_cnt
-          chip_data <- topo1[r1b:r2b, c1b:c2b, 1:3]
-          mask_data <- mask1[r1b:r2b, c1b:c2b, 1]
-        }
-        names(chip_data) <- c("R", "G", "B")
-        R <- as.vector(chip_data$R)
-        G <- as.vector(chip_data$G)
-        B <- as.vector(chip_data$B)
-        chip_data2 <- c(R, G, B)
-        chip_array <- array(chip_data2, c(256,256,3))
-        img1 <- as.cimg(chip_array)
-        names(mask_data) <- c("C")
-        Cx <- as.vector(mask_data$C)
-        mask_array <- array(Cx, c(256,256,1))
-        msk1 <- as.cimg(mask_array)
-        if(max(mask_array) > 0){
-          imager::save.image(img1, paste0(outDir, "/images/positive/", substr(fName, 1, nchar(image)-4), "_", c1, "_", r1, ".png"))
-          imager::save.image(msk1, paste0(outDir, "/masks/positive/", substr(fName, 1, nchar(image)-4), "_", c1, "_", r1, ".png"))
-        }else{
-          imager::save.image(img1, paste0(outDir, "/images/background/", substr(fName, 1, nchar(image)-4), "_", c1, "_", r1, ".png"))
-          imager::save.image(msk1, paste0(outDir, "/masks/background/", substr(fName, 1, nchar(image)-4), "_", c1, "_", r1, ".png"))
-        }
-      }
-    }
-  }
-}
-
-
+#Crate chips for each city
 for(t in 1:nrow(austin)){
   chipIt(image= austin[t, c("img_full")], 
          mask= austin[t, c("msk_full")],
+         n_channels=3,
          size=256, stride_x=256, stride_y=256, 
-         outDir= "C:/Maxwell_Data/chip_inria/austin", 
+         outDir= "C:/Maxwell_Data/inria/chips2/austin", 
          mode="All")
 }
 
 for(t in 1:nrow(chicago)){
   chipIt(image= chicago[t, c("img_full")], 
          mask= chicago[t, c("msk_full")],
+         n_channels=3,
          size=256, stride_x=256, stride_y=256, 
-         outDir= "C:/Maxwell_Data/chip_inria/chicago", 
+         outDir= "C:/Maxwell_Data/inria/chips2/chicago", 
          mode="All")
 }
 
 for(t in 1:nrow(kitsap)){
   chipIt(image= kitsap[t, c("img_full")], 
          mask= kitsap[t, c("msk_full")],
+         n_channels=3,
          size=256, stride_x=256, stride_y=256, 
-         outDir= "C:/Maxwell_Data/chip_inria/kitsap", 
+         outDir= "C:/Maxwell_Data/inria/chips2/kitsap", 
          mode="All")
 }
 
 for(t in 1:nrow(tyrol)){
   chipIt(image= tyrol[t, c("img_full")], 
          mask= tyrol[t, c("msk_full")], 
+         n_channels=3,
          size=256, stride_x=256, stride_y=256, 
-         outDir= "C:/Maxwell_Data/chip_inria/tyrol", 
+         outDir= "C:/Maxwell_Data/inria/chips2/tyrol", 
          mode="All")
 }
 
 for(t in 1:nrow(vienna)){
   chipIt(image= vienna[t, c("img_full")], 
          mask= vienna[t, c("msk_full")],
+         n_channels=3,
          size=256, stride_x=256, stride_y=256, 
-         outDir= "C:/Maxwell_Data/chip_inria/vienna", 
+         outDir= "C:/Maxwell_Data/inria/chips2/vienna", 
          mode="All")
 }
+
+#List out all images and masks for each city
+austin_img <- list.files("C:/Maxwell_Data/inria/chips2/austin/images", pattern="\\.png$", full.names=TRUE)
+austin_masks <- list.files("C:/Maxwell_Data/inria/chips2/austin/masks", pattern="\\.png$",full.names=TRUE)
+
+vienna_img <- list.files("C:/Maxwell_Data/inria/chips2/vienna/images", pattern="\\.png$", full.names=TRUE)
+vienna_masks <- list.files("C:/Maxwell_Data/inria/chips2/vienna/masks", pattern="\\.png$", full.names=TRUE)
+
+tyrol_img <- list.files("C:/Maxwell_Data/inria/chips2/tyrol/images", pattern="\\.png$", full.names=TRUE)
+tyrol_masks <- list.files("C:/Maxwell_Data/inria/chips2/tyrol/masks", pattern="\\.png$", full.names=TRUE)
+
+kitsap_img <- list.files("C:/Maxwell_Data/inria/chips2/kitsap/images", pattern="\\.png$", full.names=TRUE)
+kitsap_masks <- list.files("C:/Maxwell_Data/inria/chips2/kitsap/masks", pattern="\\.png$", full.names=TRUE)
+
+#Make data frame of image and and mask chip paths per city
+austin_chips <- data.frame(Images = austin_img, Masks = austin_masks)
+vienna_chips <- data.frame(Images = vienna_img, Masks = vienna_masks)
+tyrol_chips <- data.frame(Images = tyrol_img, Masks = tyrol_masks)
+kitsap_chips <- data.frame(Images = kitsap_img, Masks = kitsap_masks)
+
+#Write out to CSV
+write.csv(austin_chips, "C:/Maxwell_Data/inria/chips2/austin.csv")
+write.csv(vienna_chips, "C:/Maxwell_Data/inria/chips2/vienna.csv")
+write.csv(tyrol_chips, "C:/Maxwell_Data/inria/chips2/tyrol.csv")
+write.csv(kitsap_chips, "C:/Maxwell_Data/inria/chips2/kitsap.csv")

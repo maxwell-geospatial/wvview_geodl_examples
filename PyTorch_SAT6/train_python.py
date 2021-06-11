@@ -8,10 +8,62 @@ import cv2
 import torch
 from torch.utils.data.dataset import Dataset
 import albumentations as A
-import segmentation_models_pytorch as smp
+from sklearn.model_selection import train_test_split
 
-# Change directory
-os.chdir('C:/Maxwell_Data/topo_work/scripts')
+#Read in data from CSV format
+train_x = pd.read_csv("C:/Maxwell_Data/archive/X_train_sat6.csv")
+train_y = pd.read_csv("C:/Maxwell_Data/archive/y_train_sat6.csv")
+test_x = pd.read_csv("C:/Maxwell_Data/archive/X_test_sat6.csv")
+test_y = pd.read_csv("C:/Maxwell_Data/archive/y_test_sat6.csv")
+
+#Define function to preprocess labels
+def annoPrep(anno_in):
+    anno_in.columns = ["building","barren_land","trees","grassland","road","water"]
+    anno_in['class'] = anno_in.idxmax(axis=1)
+    return anno_in['class']
+    
+#Preprocess labels
+train_labels = annoPrep(train_y).to_frame()
+test_labels = annoPrep(test_y).to_frame()
+
+#Create Train/Val split
+train_x2, val_x2, train_y2, val_y2 = train_test_split(train_x, train_labels["class"], test_size=0.33, random_state=42, shuffle=True, 
+stratify=train_labels["class"])
+
+#Merge x and y
+train_set = pd.concat([train_y2, train_x2])
+val_set = pd.concat([val_y2, val_x2])
+test_set = pd.concat([test_labels, test_x])
+
+
+print("Train: " + str(train_set))
+
+
+
+
+#Define tranforms
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Import local libraries ====================================
+# Libraries from: https://github.com/calebrob6/dfc2021-msd-baseline
+
 
 # Define Variables ========================================
 ENCODER = "resnet18"
