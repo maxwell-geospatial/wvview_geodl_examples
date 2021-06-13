@@ -1,11 +1,14 @@
 #Based on this example: https://github.com/qubvel/segmentation_models.pytorch/blob/master/examples/cars%20segmentation%20(camvid).ipynb
 #Import Libraries =======================================
+from typing import Optional, List
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt 
 import os
 import cv2
 import torch
+import torch.nn as nn
+import torch.optim as optim
 from torch.utils.data.dataset import Dataset
 import albumentations as A
 import segmentation_models_pytorch as smp
@@ -18,10 +21,11 @@ train = pd.read_csv("C:/Maxwell_Data/landcover/train_chips.csv")
 test = pd.read_csv("C:/Maxwell_Data/landcover/test_chips.csv")
 
 # Define Variables ========================================
+MULTICLASS_MODE: str = "multiclass"
 ENCODER = "resnet18"
 ENCODER_WEIGHTS = 'imagenet'
-CLASSES = ["background", "building", "woodlands", "water"]
-ACTIVATION = 'softmax'
+CLASSES = ['background', 'building', 'woodlands', 'water']
+ACTIVATION = None
 DEVICE = 'cuda'
 
 #Check if GPU is available ===================================
@@ -30,25 +34,22 @@ devCnt = torch.cuda.device_count()
 devName = torch.cuda.get_device_name(0)
 print("Available: " + str(avail) + ", Count: " + str(devCnt) + ", Name: " + str(devName))
 
-
-# Subclass Dataset to create a training set ============================
-class SegData(Dataset):
+class MultiClassSegDataset(Dataset):
     
-    def __init__(self, df, classes=None, transform=None):
+    def __init__(self, df, classes=None, transform=None,):
         self.df = df
+        self.classes = classes
         self.transform = transform
-        
+    
     def __getitem__(self, idx):
+        
         image_name = self.df.iloc[idx, 2]
         mask_name = self.df.iloc[idx, 3]
         image = cv2.imread(image_name)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         mask = cv2.imread(mask_name, cv2.IMREAD_UNCHANGED)
         image = image.astype('uint8')
-        mask = mask.astype('uint8')
         mask = mask[:,:,0]
-        mask = np.expand_dims(mask, axis=2)
-        
         if(self.transform is not None):
             transformed = self.transform(image=image, mask=mask)
             image = transformed["image"]
@@ -57,17 +58,16 @@ class SegData(Dataset):
             mask = torch.from_numpy(mask)   
             image = image.permute(2, 0, 1)
             image = image.float()/255
-            mask = mask.permute(2, 0, 1)
-            mask = mask.long()
+            mask = mask.long().unsqueeze(0)
         else: 
             image = torch.from_numpy(image)
             mask = torch.from_numpy(mask)
             image = image.permute(2, 0, 1)
             image = image.float()/255
-            mask = mask.permute(2, 0, 1)
-            mask = mask.long
+            mask = mask.long().unsqueeze(0)
         return image, mask  
-    def __len__(self):  
+        
+    def __len__(self):
         return len(self.df)
 
 #Define tranforms using Albumations =======================================
@@ -87,8 +87,8 @@ train_transform = A.Compose(
 )
 
 # Create the datasets   ================================================ 
-trainDS = SegData(train, classes=CLASSES, transform=train_transform)
-testDS = SegData(test, classes=CLASSES, transform=test_transform)
+trainDS = MultiClassSegDataset(train, classes=CLASSES, transform=train_transform)
+testDS = MultiClassSegDataset(test, classes=CLASSES, transform=test_transform)
 print("Number of Training Samples: " + str(len(train)) + " Number of Validation Samples: " + str(len(test)))
 
 # Define DataLoaders ==============================================
@@ -124,25 +124,26 @@ model = smp.UnetPlusPlus(
     encoder_name=ENCODER, 
     encoder_weights=ENCODER_WEIGHTS, 
     in_channels=3,
-    classes=len(CLASSES),
+    classes=4,
+    activation=ACTIVATION,
 )
 
 #Define Loss and Metrics to Monitor ======================================
-loss = smp.utils.losses.CrossEntropyLoss()
-metrics = [
-    smp.utils.metrics.Accuracy(threshold=0.5, activation=None, ignore_channels=None)
+#loss =  smp.utils.losses.DiceLoss()
+loss = smp.losses.DiceLoss(mode="multiclass")
+loss.__name__ = 'Dice_loss'
+metrics=[
+    smp.utils.metrics.Accuracy(activation=None, ignore_channels=None),
 ]
 
 # Define Optimizer (Adam in this case) and learning rate ============================
-optimizer = torch.optim.Adam([ 
-    dict(params=model.parameters()),
-])
+optimizer = optim.Adam(params=model.parameters(), lr=0.001)
 
 # Define training epock =====================================
 train_epoch = smp.utils.train.TrainEpoch(
     model, 
-    loss=loss, 
-    metrics=metrics, 
+    loss=loss,
+    metrics= metrics,
     optimizer=optimizer,
     device=DEVICE,
     verbose=True,
@@ -151,8 +152,8 @@ train_epoch = smp.utils.train.TrainEpoch(
 # Define testing epoch =====================================
 test_epoch = smp.utils.train.ValidEpoch(
     model, 
-    loss=loss, 
-    metrics=metrics, 
+    loss=loss,
+    metrics=metrics,
     device=DEVICE,
     verbose=True,
 )
@@ -160,114 +161,23 @@ test_epoch = smp.utils.train.ValidEpoch(
 # Train model for 10 epochs ==================================
 max_score = 0
 
-for i in range(0, 20):
-    
-    print('\nEpoch: {}'.format(i))
+for i in range(0, 10):
     train_logs = train_epoch.run(trainDL)
     test_logs = test_epoch.run(testDL)
-    
-    # do something (save model, change lr, etc.)
-    if max_score < test_logs['Accuracy']:
-        max_score = test_logs['Accuracy']
-        torch.save(model, './best_model.pth')
-        print('Model saved!')
+    torch.save(model, './best_model.pth')
         
-    if i == 25:
-        optimizer.param_groups[0]['lr'] = 1e-5
-        print('Decrease decoder learning rate to 1e-5!')
-
+    
 # Load saved model ============================================
 best_model = torch.load('./best_model.pth')
 
+val = pd.read_csv("C:/Maxwell_Data/landcover/val_chips.csv")
 
-# Subclass Dataset to create a val set ============================
-class SegDataVal(Dataset):
-    
-    def __init__(self, classes=None, transform=None):
-        testP = pd.read_csv("C:/Maxwell_Data/topo_work/valP.csv")
-        testB = pd.read_csv("C:/Maxwell_Data/topo_work/valB.csv")
-        self.test = pd.concat([testP, testB])
-        self.transform = transform
-        
-    def __getitem__(self, idx):
-        image_name = self.test.iloc[idx, 1]
-        mask_name = self.test.iloc[idx, 2]
-        image = cv2.imread(image_name)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(mask_name, cv2.IMREAD_UNCHANGED)
-        image = image.astype('uint8')
-        mask = mask.astype('uint8')
-        mask = np.expand_dims(mask, axis=2)
-        
-        if(self.transform is not None):
-            transformed = self.transform(image=image, mask=mask)
-            image = transformed["image"]
-            mask = transformed["mask"]
-            image = torch.from_numpy(image)
-            mask = torch.from_numpy(mask)   
-            image = image.permute(2, 0, 1)
-            image = image.float()/255
-            mask = mask.permute(2, 0, 1)
-            mask = mask.float()/255
-        else: 
-            image = torch.from_numpy(image)
-            mask = torch.from_numpy(mask)
-            image = image.permute(2, 0, 1)
-            image = image.float()/255
-            mask = mask.permute(2, 0, 1)
-            mask = mask.float()/255
-        return image, mask  
-    def __len__(self):  
-        return len(self.test)
-        
-        
-# Subclass Dataset to create a val set ============================
-class SegDataVal2(Dataset):
-    
-    def __init__(self, classes=None, transform=None):
-        self.test = pd.read_csv("C:/Maxwell_Data/topo_work/valP.csv")
-        self.transform = transform
-        
-    def __getitem__(self, idx):
-        image_name = self.test.iloc[idx, 1]
-        mask_name = self.test.iloc[idx, 2]
-        image = cv2.imread(image_name)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(mask_name, cv2.IMREAD_UNCHANGED)
-        image = image.astype('uint8')
-        mask = mask.astype('uint8')
-        mask = np.expand_dims(mask, axis=2)
-        
-        if(self.transform is not None):
-            transformed = self.transform(image=image, mask=mask)
-            image = transformed["image"]
-            mask = transformed["mask"]
-            image = torch.from_numpy(image)
-            mask = torch.from_numpy(mask)   
-            image = image.permute(2, 0, 1)
-            image = image.float()/255
-            mask = mask.permute(2, 0, 1)
-            mask = mask.float()/255
-        else: 
-            image = torch.from_numpy(image)
-            mask = torch.from_numpy(mask)
-            image = image.permute(2, 0, 1)
-            image = image.float()/255
-            mask = mask.permute(2, 0, 1)
-            mask = mask.float()/255
-        return image, mask  
-    def __len__(self):  
-        return len(self.test)
+valDS = MultiClassSegDataset(val, classes=CLASSES, transform=test_transform)
 
-#create validaiton dataset=======================================================
-valDS = SegDataVal2()
-
-#Create validation dataloaer======================================================
-valDL =  torch.utils.data.DataLoader(valDS, batch_size=10, shuffle=False, sampler=None,
+valDL =  torch.utils.data.DataLoader(testDS, batch_size=8, shuffle=False, sampler=None,
            batch_sampler=None, num_workers=0, collate_fn=None,
            pin_memory=False, drop_last=False, timeout=0,
            worker_init_fn=None)
-
 
 # Evaluate model on validation set
 val_epoch = smp.utils.train.ValidEpoch(
@@ -279,8 +189,6 @@ val_epoch = smp.utils.train.ValidEpoch(
 
 logs = val_epoch.run(valDL)
 print(logs)
-
-
 
 #Visualize images, masks, and predictions=======================================
 def visualize(**images):
@@ -313,4 +221,3 @@ for i in range(10):
         ground_truth_mask=gt_mask, 
         predicted_mask=pr_mask
     )
-
