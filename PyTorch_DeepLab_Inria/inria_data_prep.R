@@ -28,6 +28,8 @@ kitsap <- input_cities %>% filter(city == "kitsap")
 tyrol <- input_cities %>% filter(city == "tyrol-w")
 vienna <- input_cities %>% filter(city == "vienna")
 
+write.csv(tyrol, "C:/Maxwell_Data/inria/tyrol_images.csv")
+
 #Crate chips for each city
 for(t in 1:nrow(austin)){
   chipIt(image= austin[t, c("img_full")], 

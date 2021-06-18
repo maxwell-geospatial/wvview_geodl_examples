@@ -17,7 +17,7 @@ os.chdir('C:/Maxwell_Data/inria')
 # Define Variables ========================================
 ENCODER = "resnet18"
 ENCODER_WEIGHTS = 'imagenet'
-CLASSES = ["mine"]
+CLASSES = ["building"]
 ACTIVATION = 'sigmoid'
 DEVICE = 'cuda'
 
@@ -282,8 +282,6 @@ for i in range(0, 10):
 
 # Load saved model ============================================
 best_model = torch.load('./best_model_vienna.pth')
-
-
 
 #create validaiton dataset=======================================================
 valDS = SegData(tyrol)

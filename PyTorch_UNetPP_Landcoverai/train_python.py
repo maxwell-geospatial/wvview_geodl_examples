@@ -16,7 +16,7 @@ import segmentation_models_pytorch as smp
 # Change directory
 os.chdir("C:/Maxwell_Data/landcover")
 
-#Read in chip lists =======================================
+#Read training and testing chip lists =======================================
 train = pd.read_csv("C:/Maxwell_Data/landcover/train_chips.csv")
 test = pd.read_csv("C:/Maxwell_Data/landcover/test_chips.csv")
 
@@ -34,6 +34,7 @@ devCnt = torch.cuda.device_count()
 devName = torch.cuda.get_device_name(0)
 print("Available: " + str(avail) + ", Count: " + str(devCnt) + ", Name: " + str(devName))
 
+# Subclass and define custom dataset ===========================
 class MultiClassSegDataset(Dataset):
     
     def __init__(self, df, classes=None, transform=None,):
@@ -119,7 +120,7 @@ plt.imshow(testImg.permute(1,2,0))
 # Plot exmaple mask ======================================
 plt.imshow(testMsk.permute(1,2,0))
 
-# Initiate UNet Model ======================================
+# Initiate UNet++ Model ======================================
 model = smp.UnetPlusPlus(
     encoder_name=ENCODER, 
     encoder_weights=ENCODER_WEIGHTS, 
@@ -128,13 +129,11 @@ model = smp.UnetPlusPlus(
     activation=ACTIVATION,
 )
 
-#Define Loss and Metrics to Monitor ======================================
-#loss =  smp.utils.losses.DiceLoss()
+#Define Loss and Metrics to Monitor (Make sure mode = "multiclass") ======================================
 loss = smp.losses.DiceLoss(mode="multiclass")
 loss.__name__ = 'Dice_loss'
-metrics=[
-    smp.utils.metrics.Accuracy(activation=None, ignore_channels=None),
-]
+#Will not monitor any metircs other than loss. 
+metrics=[]
 
 # Define Optimizer (Adam in this case) and learning rate ============================
 optimizer = optim.Adam(params=model.parameters(), lr=0.001)
@@ -167,9 +166,10 @@ for i in range(0, 10):
     torch.save(model, './best_model.pth')
         
     
-# Load saved model ============================================
+# Load saved model =============================================
 best_model = torch.load('./best_model.pth')
 
+# Evaluate model on validation set==============================
 val = pd.read_csv("C:/Maxwell_Data/landcover/val_chips.csv")
 
 valDS = MultiClassSegDataset(val, classes=CLASSES, transform=test_transform)
@@ -179,7 +179,6 @@ valDL =  torch.utils.data.DataLoader(testDS, batch_size=8, shuffle=False, sample
            pin_memory=False, drop_last=False, timeout=0,
            worker_init_fn=None)
 
-# Evaluate model on validation set
 val_epoch = smp.utils.train.ValidEpoch(
     model=best_model,
     loss=loss,
@@ -214,6 +213,9 @@ for i in range(10):
     
     x_tensor = image.to(DEVICE).unsqueeze(0)
     pr_mask = best_model.predict(x_tensor)
+    m = nn.Softmax(dim=1)
+    pr_probs = m(pr_mask)              
+    pr_mask = torch.argmax(pr_probs, dim=1).squeeze(1)
     pr_mask = (pr_mask.squeeze().cpu().numpy().round())
         
     visualize(
@@ -221,3 +223,4 @@ for i in range(10):
         ground_truth_mask=gt_mask, 
         predicted_mask=pr_mask
     )
+
