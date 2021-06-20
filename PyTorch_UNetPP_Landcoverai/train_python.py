@@ -116,9 +116,11 @@ testImg.max(), testMsk.min(), testMsk.max())
 
 # Plot example image =====================================
 plt.imshow(testImg.permute(1,2,0))
+plt.show()
 
 # Plot exmaple mask ======================================
 plt.imshow(testMsk.permute(1,2,0))
+plt.show()
 
 # Initiate UNet++ Model ======================================
 model = smp.UnetPlusPlus(
