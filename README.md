@@ -2,7 +2,7 @@
 
 ## Overview
 
-The goal of this repository is to provide example workflows for geospatial deep learning. The primary focus is semantic segmentation for pixel-based classification. However, we will also provide examples demonstrating object detection/instance segmentation and scene classification. We plan to continue to add examples and make updates. This material is associated with the WV View [Geospatial Deep Learning](http://www.wvview.org/course_directory.html) seminar. 
+The goal of this repository is to provide example workflows for geospatial deep learning. The primary focus is semantic segmentation for pixel-based classification. However, we will also provide examples demonstrating object detection/instance segmentation and scene classification. We plan to continue to add examples and make updates. This material is associated with the WV View [Geospatial Deep Learning](http://www.wvview.org/course_directory.html) seminar. This seminar is not yet completed, but should be released by August 2021. 
 
 WV View is supported by AmericaView and the U.S. Geological Survey under Grant/Cooperative Agreement No. G18AP00077.
 
@@ -21,15 +21,15 @@ The views and conclusions contained in this document are those of the authors an
 
 The following videos step through example using ArcGIS Pro without any coding, our PyTorch/Python and R examples, and settting up deep learning environments. 
 
-1. [Set Up ArcGIS Pro for Deep Learning](https://youtu.be/z6PAUzPqSkQ)
-2. [UNet Semantic Segmentation with ArcGIS Pro (topoDL)](https://youtu.be/4HZ41mFhWws)
-3. [Object Detect/Instance Segmentation with ArcGIS Pro (vfillDL)]()
-4. [Set up PyTorch Python environment using Anaconda](https://youtu.be/gEkhiP_oCT4)
-5. [PyTorch/R CNN Scene Classification (DeepSat SAT-6 Dataset)]()
-6. [PyTorch/R Semantic Segmentation (topoDL)](https://youtu.be/wtwOSWsZ3xM)
-7. [PyTorch/R Semantic Segmentation (LandCover.ai)]()
-8. [Pytorch/R Sematnic Segmentation (Inria)](https://youtu.be/Ac20oEYYdMM)
-9. [PyTorch/R Semantic Segmentation (wvlcDL)]()
+1. [Set Up ArcGIS Pro for Deep Learning](https://youtu.be/z6PAUzPqSkQ) (Completed)
+2. [UNet Semantic Segmentation with ArcGIS Pro (topoDL)](https://youtu.be/4HZ41mFhWws) (Completed)
+3. [Object Detect/Instance Segmentation with ArcGIS Pro (vfillDL)]() (In Progress)
+4. [Set up PyTorch Python environment using Anaconda](https://youtu.be/gEkhiP_oCT4) (Completed)
+5. [PyTorch/R CNN Scene Classification (DeepSat SAT-6 Dataset)]() (In Progress)
+6. [PyTorch/R Semantic Segmentation (topoDL)](https://youtu.be/wtwOSWsZ3xM) (Completed)
+7. [Pytorch/R Sematnic Segmentation (Inria)](https://youtu.be/Ac20oEYYdMM) (Completed)
+8. [PyTorch/R Semantic Segmentation (LandCover.ai)](https://youtu.be/HxyBvugGqaw) (Completed)
+9. [PyTorch/R Semantic Segmentation (wvlcDL)]() (In Progress)
 
 ## Data
 
@@ -39,8 +39,8 @@ The datasets used in the examples are linked below.
 2. [vfillDL](http://www.wvview.org/research.html)
 3. [wvlcDL](http://www.wvview.org/research.html)
 4. [SAT-6](https://www.kaggle.com/crawford/deepsat-sat6)
-5. [LandCover.ai](https://landcover.ai/)
-6. [Inria](https://project.inria.fr/aerialimagelabeling/)
+5. [Inria](https://project.inria.fr/aerialimagelabeling/)
+6. [LandCover.ai](https://landcover.ai/)
 
 ## Papers
 
