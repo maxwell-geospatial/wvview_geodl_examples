@@ -25,7 +25,7 @@ The following videos step through example using ArcGIS Pro without any coding, o
 2. [UNet Semantic Segmentation with ArcGIS Pro (topoDL)](https://youtu.be/4HZ41mFhWws) (Completed)
 3. [Object Detect/Instance Segmentation with ArcGIS Pro (vfillDL)]() (In Progress)
 4. [Set up PyTorch Python environment using Anaconda](https://youtu.be/gEkhiP_oCT4) (Completed)
-5. [PyTorch/R CNN Scene Classification (DeepSat SAT-6 Dataset)]() (In Progress)
+5. [PyTorch/R CNN Scene Classification (DeepSat SAT-6 Dataset)](https://youtu.be/nmRKUynZnc4) (Completed)
 6. [PyTorch/R Semantic Segmentation (topoDL)](https://youtu.be/wtwOSWsZ3xM) (Completed)
 7. [Pytorch/R Sematnic Segmentation (Inria)](https://youtu.be/Ac20oEYYdMM) (Completed)
 8. [PyTorch/R Semantic Segmentation (LandCover.ai)](https://youtu.be/HxyBvugGqaw) (Completed)
