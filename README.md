@@ -2,7 +2,7 @@
 
 ## Overview
 
-The goal of this repository is to provide example workflows for geospatial deep learning. The primary focus is semantic segmentation for pixel-based classification. However, we will also provide examples demonstrating object detection/instance segmentation and scene classification. We plan to continue to add examples and make updates. This material is associated with the WV View [Geospatial Deep Learning](http://www.wvview.org/course_directory.html) seminar. This seminar is not yet completed, but should be released by August 2021. 
+The goal of this repository is to provide example workflows for geospatial deep learning. The primary focus is semantic segmentation for pixel-based classification. However, we will also provide examples demonstrating object detection/instance segmentation and scene classification. We plan to continue to add examples and make updates. This material is associated with the WV View [Geospatial Deep Learning](http://www.wvview.org/course_directory.html) seminar.
 
 WV View is supported by AmericaView and the U.S. Geological Survey under Grant/Cooperative Agreement No. G18AP00077.
 
