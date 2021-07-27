@@ -23,8 +23,7 @@ avail = torch.cuda.is_available()
 devCnt = torch.cuda.device_count()
 devName = torch.cuda.get_device_name(0)
 print("Available: " + str(avail) + ", Count: " + str(devCnt) + ", Name: " + str(devName))
-# Load saved model =============================================
-best_model = torch.load('./best_model.pth')
+
 
 # Define Variables ========================================
 MULTICLASS_MODE: str = "multiclass"
@@ -34,7 +33,7 @@ CLASSES = ['background', 'barren', 'crop', 'forest', 'grass', 'imperv', 'mixdev'
 ACTIVATION = None
 DEVICE = 'cuda'
 
-# Initiate UNet++ Model ======================================
+# Initiate UNet++ Model and send to GPU ======================================
 model = smp.UnetPlusPlus(
     encoder_name=ENCODER, 
     encoder_weights=ENCODER_WEIGHTS, 
@@ -42,10 +41,11 @@ model = smp.UnetPlusPlus(
     in_channels=4,
     classes=8,
     activation=ACTIVATION,
-)
+).to(torch.device("cuda", 0))
 
 # Read in trained model =====================================
-best_model = torch.load('./best_model.pth')
+model.load_state_dict(torch.load('model_out_11.pth'))
+model.eval()
 
 # Define inference function ================================
 def geoInfer(image_in, pred_out, chip_size, stride_x, stride_y, crop, n_channels, n_classes):
@@ -123,7 +123,7 @@ def geoInfer(image_in, pred_out, chip_size, stride_x, stride_y, crop, n_channels
                 r2b = down_cnt + 1
             ten1 = t_arr[0:n_channels, r1b:r2b, c1b:c2b]
             ten1 = ten1.to(DEVICE).unsqueeze(0)
-            ten2 = best_model.predict(ten1)
+            ten2 = model.predict(ten1)
             m = nn.Softmax(dim=1)
             pr_probs = m(ten2)
             pr_probs2 = pr_probs[:, 1:n_classes+1, :, :]
@@ -167,4 +167,4 @@ def geoInfer(image_in, pred_out, chip_size, stride_x, stride_y, crop, n_channels
         
         
 # Use inference function ============================================
-geoInfer(image_in="C:/Maxwell_Data/wvlcDL_2/pred_test/test_qquad.tif", pred_out="C:/Maxwell_Data/wvlcDL_2/pred_test/test_pred.tif", chip_size=512, stride_x=256, stride_y=256, crop=70, n_channels=4, n_classes=8)
+geoInfer(image_in="C:/Maxwell_Data/wvlcDL_2/pred_test/test_qqquad5m.tif", pred_out="C:/Maxwell_Data/wvlcDL_2/pred_test/test_predOut.tif", chip_size=256, stride_x=64, stride_y=64, crop=70, n_channels=4, n_classes=8)

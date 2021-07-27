@@ -93,7 +93,7 @@ chipIt <- function(image, mask, fname=imgNm, n_channels=3, size=256, stride_x=25
       Cx <- as.vector(mask_data$C)
       mask_array <- array(Cx, c(size,size,1))
       msk1 <- rast(mask_array)
-      if(max(mask_array) > 0){
+      if(max(mask_array, na.rm=TRUE) > 0 & any(is.na(mask_array)) == FALSE){
         writeRaster(image1, paste0(outDir, "/images/", substr(fName, 1, nchar(fName)-4), "_", c1, "_", r1, ".tif"))
         writeRaster(msk1, paste0(outDir, "/masks/", substr(fName, 1, nchar(fName)-4), "_", c1, "_", r1, ".tif"))
       }
@@ -105,16 +105,19 @@ chipIt <- function(image, mask, fname=imgNm, n_channels=3, size=256, stride_x=25
 naip_msks <- list.files(path="C:/Maxwell_Data/wvlcDL_2/masks", pattern = "\\.tif$", recursive = TRUE)
 
 
-# Loop to generate chips for quater quads and masks ============================
+# Loop to generate chips from quarter quads and masks ============================
 for (i in 1:length(naip_msks)) {
   imgIn <- paste0("C:/Maxwell_Data/wv_60cm_2016/", naip_msks[i])
   maskIn <- paste0("C:/Maxwell_Data/wvlcDL_2/masks/", naip_msks[i])
   imgInR <- rast(imgIn)
   maskInR <- rast(maskIn)
+  imgInR2 <- aggregate(imgInR, fact=5, fun="median")
+  maskInR2 <- aggregate(maskInR, fact=5, fun="modal")
+  
   imgNm <- imgIn
-  chipIt(image=imgInR,mask=maskInR, fname=imgNm,
-         n_channels=4, size=512, stride_x=512, stride_y=512, 
-         outDir="C:/Maxwell_Data/wvlcDL_2/chips2")
+  chipIt(image=imgInR2,mask=maskInR2, fname=imgNm,
+         n_channels=4, size=256, stride_x=256, stride_y=256, 
+         outDir="C:/Maxwell_Data/wvlcDL_2/chips3")
 }
 
 
